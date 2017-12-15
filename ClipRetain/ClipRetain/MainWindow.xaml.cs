@@ -63,6 +63,11 @@ namespace ClipRetain
             }
         }
 
+        private void Button_Copy_And_Replace_Click(object sender, RoutedEventArgs e)
+        {
+            /// todo!
+        }
+
         private void Button_Remove_Click(object sender, RoutedEventArgs e)
         {
             if (crClipHistoryList.SelectedIndex < 0)
@@ -84,5 +89,6 @@ namespace ClipRetain
         {
             crClipHistoryList.Items.Clear();
         }
+
     }
 }
