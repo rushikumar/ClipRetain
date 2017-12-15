@@ -58,6 +58,8 @@ namespace ClipRetain
             else
             {
                 Clipboard.SetText(crClipHistoryList.SelectedItem.ToString());
+                Notifications showNotification = new Notifications("Item copied!");
+                showNotification.Show();
             }
         }
 
