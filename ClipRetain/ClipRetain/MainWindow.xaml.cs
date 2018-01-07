@@ -41,24 +41,41 @@ namespace ClipRetain
             this.loggedOnUser = WindowsIdentity.GetCurrent().Name.Substring(WindowsIdentity.GetCurrent().Name.IndexOf(@"\") + 1);
             ClipRetainMainWindow.Title = "ClipRetain - Welcome " + this.loggedOnUser;
 
+            /// This works too
+            /// Console.WriteLine(Environment.UserName);
+            /// Console.WriteLine(Environment.MachineName);
+            /// 
+            this.Loaded += new RoutedEventHandler(this.Window_Loaded);
+
             this.PasteOnLoad();
         }
 
         public void PasteOnLoad()
         {
+            /// if clipboard is empty, we simply return...
+            if (Clipboard.ContainsData(DataFormats.Text) == false) return;
+
             IDataObject clipBoardData = Clipboard.GetDataObject();
             crCurrentContent.Content = Clipboard.GetText(); // set the label to what's currently in the clipboard
 
             var cntr = 1;
-            
-            var row = new { Counter = cntr.ToString(), Content = Clipboard.GetText(), Size = SizeSuffix(GetSize(Clipboard.GetText())) };
-            crClipHistoryList.Items.Add(row);
+
+            ClipboardRecords currentClipboardItem = new ClipboardRecords();
+            currentClipboardItem.Counter = cntr;
+            currentClipboardItem.Content = Clipboard.GetText();
+            currentClipboardItem.Size = SizeSuffix(GetSize(Clipboard.GetText()));
+            crClipHistoryList.Items.Add(currentClipboardItem);
+
             cntr++;
 
             string[] seedData = { "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string" };
             foreach (string str in seedData)
             {
-                crClipHistoryList.Items.Add(new { Counter = cntr.ToString(), Content = str, Size = SizeSuffix(GetSize(str)) });
+                ClipboardRecords newRecord = new ClipboardRecords();
+                newRecord.Counter = cntr;
+                newRecord.Content = str;
+                newRecord.Size = SizeSuffix(GetSize(str));
+                crClipHistoryList.Items.Add(newRecord);
                 cntr++;
             }
 
@@ -117,7 +134,21 @@ namespace ClipRetain
             }
             else
             {
-                Clipboard.SetText(crClipHistoryList.SelectedItem.ToString());
+                /// string currentlySelected = crClipHistoryList.SelectedItem.ToString();
+                /// Dictionary<string,string> keyValuePairs = currentlySelected.Split("=")
+
+                /// The following works too!
+                /// var selectedClipboardRecord = crClipHistoryList.SelectedItems[0] as ClipboardRecords;
+                /// Clipboard.SetText(selectedClipboardRecord.Content);
+
+                /// The following works too!
+                /// ClipboardRecords selectedHistoryRecord = (ClipboardRecords)crClipHistoryList.SelectedItems[0];
+                /// Clipboard.SetText(selectedHistoryRecord.Content);
+
+                /// The following works too!
+                ClipboardRecords selectedHistoryRecord = crClipHistoryList.SelectedItem as ClipboardRecords;
+                Clipboard.SetText(selectedHistoryRecord.Content);
+                
                 Notifications showNotification = new Notifications("Item copied!");
                 showNotification.Show();
             }
@@ -129,7 +160,18 @@ namespace ClipRetain
         /// </summary>
         private void Button_Copy_And_Replace_Click(object sender, RoutedEventArgs e)
         {
-            // todo!
+            /// Get the current data from clipboard
+            ClipboardRecords selectedHistoryRecord = crClipHistoryList.SelectedItem as ClipboardRecords;
+            string currentlySelected = selectedHistoryRecord.Content;
+            
+            /// setting the selected item's content to what is in the clipboard
+            selectedHistoryRecord.Content = Clipboard.GetText();
+
+            /// lets copy the selected item to the clipboard
+            Clipboard.SetText(currentlySelected);
+
+            /// let's refresh our listview control...
+            crClipHistoryList.Items.Refresh();
         }
 
         /// <summary>
@@ -152,15 +194,26 @@ namespace ClipRetain
             }
             else
             {
-                List<int> myIndexes = new List<int>();
-                var selected = crClipHistoryList.SelectedItems.Cast<object>().ToArray();
-                foreach (var item in selected)
+                /// List<int> myIndexes = new List<int>();
+                /// var selected = crClipHistoryList.SelectedItems.Cast<ClipboardRecords>().ToArray();
+                string itemOne = "";
+                string itemTwo = "";
+                var firstSelectedClipboardRecord = crClipHistoryList.SelectedItems[0] as ClipboardRecords;
+                itemOne = firstSelectedClipboardRecord.Content;
+
+                var secondSelectedClipboardRecord = crClipHistoryList.SelectedItems[1] as ClipboardRecords;
+                itemTwo = secondSelectedClipboardRecord.Content;
+
+                Console.WriteLine("Two Items:");
+                Console.WriteLine(itemOne);
+                Console.WriteLine(itemTwo);
+
+                /*foreach (ClipboardRecords swappableRecords in selected)
                 {
-                    var indexVal = item.ToString().Substring(item.ToString().IndexOf("=") + 1, item.ToString().IndexOf(",") - 11);
-                    Console.WriteLine(indexVal);
-                    Console.WriteLine(int.Parse(indexVal));
-                    myIndexes.Add(int.Parse(indexVal));
-                }
+                    swappableRecords.Content = itemTwo;
+                }*/
+
+                crClipHistoryList.Items.Refresh();
             }
         }
 
@@ -197,6 +250,18 @@ namespace ClipRetain
             {
                 crClipHistoryList.Items.Clear();
             }
+        }
+
+        /// <summary>
+        /// Open the main window on bottom right of the screen
+        /// This endeavor is part of a future plan of showing the ClipRetain only as an icon
+        /// in the lower right area of the screen; upon clicking or hovering, we will do other fancy things...
+        /// </summary>
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            var getWorkingArea = System.Windows.SystemParameters.WorkArea;
+            this.Left = getWorkingArea.Right - this.Width;
+            this.Top = getWorkingArea.Bottom - this.Height;
         }
     }
 }

@@ -6,13 +6,13 @@
         xmlns:local="clr-namespace:ClipRetain"
         mc:Ignorable="d"
         Name="ClipRetainMainWindow"
-        Title="ClipRetain" Height="621.4" Width="878.4">
-    <Grid>
+        Title="ClipRetain" Height="651.3" Width="878.4" >
+    <Grid Opacity="0.85">
         <GroupBox Header="Currently In Clip Board" HorizontalAlignment="Left" Height="111" Margin="10,10,0,0" VerticalAlignment="Top" Width="650"/>
         <Rectangle Name="crCurrent" Fill="#FFF4F4F5" HorizontalAlignment="Left" Height="68" Margin="20,43,0,0" Stroke="Black" VerticalAlignment="Top" Width="620"/>
         <Label Name="crCurrentContent" Content="" HorizontalAlignment="Left" Margin="20,43,0,0" VerticalAlignment="Top" Height="68" Width="620"/>
         <GroupBox Header="History" HorizontalAlignment="Left" Height="372" Margin="10,210,0,0" VerticalAlignment="Top" Width="650">
-            <ListView Name="crClipHistoryList" HorizontalAlignment="Left" Height="324" Margin="7,19,0,0" VerticalAlignment="Top" Width="618">
+            <ListView Name="crClipHistoryList" AlternationCount="1000" HorizontalAlignment="Left" Height="324" Margin="7,19,0,0" VerticalAlignment="Top" Width="618">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem">
                         <Setter Property="Height" Value="50" />
@@ -21,6 +21,11 @@
                 <ListView.View>
                     <GridView AllowsColumnReorder="True" ColumnHeaderToolTip="Clipboard History at a Glance">
                         <GridViewColumn Header="#" DisplayMemberBinding="{Binding Path=Counter}" Width="50"/>
+                        <!--GridViewColumn Header="#" DisplayMemberBinding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ListViewItem} }" Width="50"/-->
+                        <!--GridViewColumn Header="#" DisplayMemberBinding="{Binding RelativeSource={RelativeSource FindAncestor,
+                                                                                                  AncestorType={x:Type ListViewItem}},
+                                                                                                  Converter={StaticResource IndexConverter},
+                                                                                                  ConverterParameter=1}" Width="50"/-->
                         <GridViewColumn Header="Content" DisplayMemberBinding="{Binding Path=Content}" Width="471"/>
                         <GridViewColumn Header="Size" DisplayMemberBinding="{Binding Path=Size}" Width="87"/>
                     </GridView>
@@ -33,5 +38,6 @@
         <Button Name="btnRemove" Content="Remove" HorizontalAlignment="Left" Margin="680,402,0,0" VerticalAlignment="Top" Width="170" Height="40" Click="Button_Remove_Click"/>
         <Button Name="btnRemoveAll" Content="Remove All" HorizontalAlignment="Left" Margin="680,463,0,0" VerticalAlignment="Top" Width="170" Height="39" Click="Button_Remove_All_Click"/>
         <Label Name="crCurrentStats" Content="Stats" HorizontalAlignment="Left" Margin="20,135,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.521,-0.008" Width="620"/>
+        <Label Name="lblHistoryListStats" Content="Stats: Total Items: # | Sticky Items: # | Favorite Items: #" HorizontalAlignment="Left" Margin="20,582,0,0" VerticalAlignment="Top" Width="620"/>
     </Grid>
 </Window>
