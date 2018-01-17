@@ -11,6 +11,7 @@ namespace ClipRetain
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Security.Principal;
     using System.Text;
@@ -20,6 +21,7 @@ namespace ClipRetain
     using System.Windows.Data;
     using System.Windows.Documents;
     using System.Windows.Input;
+    using System.Windows.Interop;
     using System.Windows.Media;
     using System.Windows.Media.Imaging;
     using System.Windows.Navigation;
@@ -31,7 +33,10 @@ namespace ClipRetain
     public partial class MainWindow : Window
     {
         private static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB" }; // For the history list, for when we populate it
+        private HwndSource hWndSource;
+        private IntPtr hWndNextViewer;
         private string loggedOnUser = string.Empty;
+        private int listCounter = 2;
 
         public MainWindow()
         {
@@ -46,8 +51,13 @@ namespace ClipRetain
             /// Console.WriteLine(Environment.MachineName);
             /// 
             this.Loaded += new RoutedEventHandler(this.Window_Loaded);
+            
+            /// this.PasteOnLoad();
+            this.AddSeedData();
 
-            this.PasteOnLoad();
+            /// We need to stop monitoring clipboard, once the user
+            /// closes the app... for this, we need to note when the window closes
+            this.Closed += new EventHandler(this.Window_Closed);
         }
 
         public void PasteOnLoad()
@@ -57,34 +67,28 @@ namespace ClipRetain
 
             IDataObject clipBoardData = Clipboard.GetDataObject();
             crCurrentContent.Content = Clipboard.GetText(); // set the label to what's currently in the clipboard
-
-            var cntr = 1;
-
+            
             ClipboardRecords currentClipboardItem = new ClipboardRecords();
-            currentClipboardItem.Counter = cntr;
+            currentClipboardItem.Counter = listCounter;
             currentClipboardItem.Content = Clipboard.GetText();
             currentClipboardItem.Size = SizeSuffix(GetSize(Clipboard.GetText()));
             crClipHistoryList.Items.Add(currentClipboardItem);
 
-            cntr++;
+            this.listCounter++;
+        }
 
+        private void AddSeedData()
+        {
             string[] seedData = { "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string", "A string of Data", "Another string of data", "Why not? lets have another string" };
             foreach (string str in seedData)
             {
                 ClipboardRecords newRecord = new ClipboardRecords();
-                newRecord.Counter = cntr;
+                newRecord.Counter = listCounter;
                 newRecord.Content = str;
                 newRecord.Size = SizeSuffix(GetSize(str));
                 crClipHistoryList.Items.Add(newRecord);
-                cntr++;
+                this.listCounter++;
             }
-
-            var totalCharacters = 0;
-            totalCharacters = Clipboard.GetText().Count();
-
-            crCurrentStats.Content = "Stats: Total Characters: " + totalCharacters;
-
-            return;
         }
 
         /// <summary>
@@ -262,6 +266,100 @@ namespace ClipRetain
             var getWorkingArea = System.Windows.SystemParameters.WorkArea;
             this.Left = getWorkingArea.Right - this.Width;
             this.Top = getWorkingArea.Bottom - this.Height;
+
+            /// We invoke the monitor method here, and not in MainWindow() method
+            /// because, Window_Loaded() method runs *once* the window has done loading.
+            /// If we invoke it in the MainWindow() we would get the "Hwnd of zero is not valid."
+            /// error, when we set the hWndNextViewer
+            this.startMonitoringClipboard();
+        }
+
+        private void startMonitoringClipboard()
+        {
+            WindowInteropHelper wih = new WindowInteropHelper(this);
+            hWndSource = HwndSource.FromHwnd(wih.Handle);
+
+            //add an event handler that receives all window messages
+            hWndSource.AddHook(this.WinProc);
+            hWndNextViewer = Win32.SetClipboardViewer(hWndSource.Handle);
+        }
+
+        /// <summary>
+        /// Code adapted from sample written by Jie Wang at
+        /// https://blogs.msdn.microsoft.com/codefx/2012/03/07/sample-of-mar-7th-monitor-windows-clipboard-changes-in-wpf/
+        /// </summary>
+        /// <param name="hwnd"></param>
+        /// <param name="msg"></param>
+        /// <param name="wParam"></param>
+        /// <param name="lParam"></param>
+        /// <param name="handled"></param>
+        /// <returns></returns>
+        private IntPtr WinProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            switch (msg)
+            {
+                case Win32.WM_CHANGECBCHAIN:
+                    if (wParam == hWndNextViewer)
+                    {
+                        hWndNextViewer = lParam;
+                    }
+                    else if (hWndNextViewer != IntPtr.Zero)
+                    {
+                        Win32.SendMessage(hWndNextViewer, msg, wParam, lParam);
+                    }
+                    break;
+
+                case Win32.WM_DRAWCLIPBOARD:
+                    this.AddClipboardContent();
+                    Win32.SendMessage(hWndNextViewer, msg, wParam, lParam);
+                    break;
+            }
+            //throw new NotImplementedException();
+            return IntPtr.Zero;
+        }
+
+        private void AddClipboardContent()
+        {
+            /// if clipboard is empty, we simply return...
+            if (Clipboard.ContainsData(DataFormats.Text) == false) return;
+            
+            if (Clipboard.ContainsText())
+            {
+                ClipboardRecords cr = new ClipboardRecords();
+                cr.Counter = 1;
+                cr.Content = Clipboard.GetText();
+                cr.Size = SizeSuffix(GetSize(Clipboard.GetText()));
+                /// instead of the Add() method, we will use the Insert() method, 
+                /// as the Add() method will append the new clipboard content.
+                /// Insert() on the other hand adds the new clipboard content
+                /// to the beginning of the list
+                /// crClipHistoryList.Items.Add(cr);
+                crClipHistoryList.Items.Insert(0, cr);
+                this.listCounter++;
+                crClipHistoryList.Items.Refresh();
+
+                /// lets notify the user via a balloon popup notification
+                /// that the newly copied item has been added to the 
+                /// clipboard history list
+                Notifications itemAdded = new Notifications("Copied to Clipboard History!");
+                itemAdded.Show();
+            }
+
+            IDataObject clipBoardData = Clipboard.GetDataObject();
+            crCurrentContent.Content = Clipboard.GetText(); // set the label to what's currently in the clipboard
+
+            var totalCharacters = 0;
+            totalCharacters = Clipboard.GetText().Count();
+
+            crCurrentStats.Content = "Stats: Total Characters: " + totalCharacters;
+            //throw new NotImplementedException();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            Win32.ChangeClipboardChain(hWndSource.Handle, hWndNextViewer);
+            hWndNextViewer = IntPtr.Zero;
+            hWndSource.RemoveHook(this.WinProc);
         }
     }
 }
